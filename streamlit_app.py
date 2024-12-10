@@ -99,12 +99,12 @@ def load_artifacts(model_path, scaler_path, pca_path, encoder_path):
     return model, scaler, pca, label_encoders
 
 # Rutas a los archivos de modelos y artefactos
-model1_path = "model_1_sv"  # Cambiar a la ruta del archivo .keras o directorio SavedModel
+model1_path = "model_1_sv.keras"  # Cambiar a la ruta del archivo .keras o directorio SavedModel
 scaler1_path = "scaler_corrected.pkl"
 pca1_path = "pca_nw.pkl"  # Opcional, puede omitirse si no se usa PCA
 encoder1_path = "label_encoders_nw.pkl"
 
-model2_path = "model_2_sv"  # Cambiar a la ruta del archivo .keras o directorio SavedModel
+model2_path = "model_2_sv.keras"  # Cambiar a la ruta del archivo .keras o directorio SavedModel
 scaler2_path = "scaler_corrected.pkl"
 pca2_path = "pca_nw.pkl"  # Opcional, puede omitirse si no se usa PCA
 encoder2_path = "label_encoders_nw.pkl"
