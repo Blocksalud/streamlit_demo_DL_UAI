@@ -5,13 +5,26 @@ import os
 import json
 from tensorflow.keras.models import load_model, model_from_json
 from sklearn.exceptions import NotFittedError
+from tensorflow.keras.utils import custom_object_scope
+
+
+# Define the custom loss function
+def weighted_focal_loss(gamma=2., alpha=0.25):
+    def focal_loss_fixed(y_true, y_pred):
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        cross_entropy = -y_true * K.log(y_pred)
+        weight = alpha * y_true * K.pow(1 - y_pred, gamma)
+        return K.sum(weight * cross_entropy, axis=-1)
+    return focal_loss_fixed
 
 # Función para cargar modelos, incluyendo archivos .keras y SavedModel
 def load_model_with_fix(model_path):
     try:
-        # Verificar si el modelo es un archivo .keras
+        # Check for .keras file
         if model_path.endswith(".keras") and os.path.exists(model_path):
-            model = load_model(model_path)
+            # Use custom_object_scope to register the loss function
+            with custom_object_scope({'weighted_focal_loss': weighted_focal_loss()}):
+                model = load_model(model_path)
             st.success(f"Modelo cargado exitosamente desde {model_path}")
             return model
 
@@ -96,12 +109,18 @@ scaler2_path = "scaler_corrected.pkl"
 pca2_path = "pca_nw.pkl"  # Opcional, puede omitirse si no se usa PCA
 encoder2_path = "label_encoders_nw.pkl"
 
+model3_path = "best_model_hyper.keras"  # Cambiar a la ruta del archivo .keras o directorio SavedModel
+scaler3_path = "scaler_corrected.pkl"
+pca3_path = "pca_nw.pkl"  # Opcional, puede omitirse si no se usa PCA
+encoder3_path = "label_encoders_nw.pkl"
+
 # Cargar artefactos para ambos modelos
 model1, scaler1, pca1, encoders1 = load_artifacts(model1_path, scaler1_path, pca1_path, encoder1_path)
 model2, scaler2, pca2, encoders2 = load_artifacts(model2_path, scaler2_path, pca2_path, encoder2_path)
+model3, scaler3, pca3, encoders3 = load_artifacts(model3_path, scaler3_path, pca3_path, encoder3_path)
 
 # Verificar que al menos uno de los modelos se haya cargado correctamente
-if not model1 and not model2:
+if not model1 and not model2 and not model3:
     st.error("No se pudieron cargar los modelos. Revisa las rutas y formatos.")
     st.stop()
 
@@ -111,7 +130,7 @@ st.title("Predicción con Múltiples Modelos")
 # Selección del modelo a usar
 model_option = st.selectbox(
     "Selecciona el modelo para usar",
-    ("Modelo 1", "Modelo 2")
+    ("Modelo 1", "Modelo 2", "Modelo 3")
 )
 
 # Inicializar la lista de características de entrada
@@ -122,6 +141,8 @@ if model_option == "Modelo 1" and encoders1:
     encoders = encoders1
 elif model_option == "Modelo 2" and encoders2:
     encoders = encoders2
+elif model_option == "Modelo 3" and encoders3:
+    encoders = encoders3
 else:
     encoders = None
 
@@ -191,10 +212,13 @@ if st.button("Predecir"):
             st.write(f"Predicción (Modelo 1): {prediction[0][0]:.4f}")
         except Exception as e:
             st.error(f"Error al procesar datos con el Modelo 1: {e}")
+
     elif model_option == "Modelo 2" and model2:
         try:
             # Transformar con StandardScaler
-            input_scaled = scaler2.transform(input_array)
+            if input_array.shape[1] != model2.input_shape[1]:
+                raise ValueError(f"Input has {input_array.shape[1]} features, but model excepts {model2.input_shape[1]} features.")
+            input_scaled = pca2.transform(input_array)
             st.write(f"Datos escalados (Modelo 2): {input_scaled}")  # Salida de depuración
 
             # Transformar con PCA si está disponible
@@ -208,5 +232,23 @@ if st.button("Predecir"):
             st.write(f"Predicción (Modelo 2): {prediction[0][0]:.4f}")
         except Exception as e:
             st.error(f"Error al procesar datos con el Modelo 2: {e}")
+
+    elif model_option == "Modelo 3" and model3:
+        try:
+            # Ensure input shape matches model input
+            if input_array.shape[1] != model3.input_shape[1]:
+                raise ValueError(f"Input has {input_array.shape[1]} features, but model expects {model3.input_shape[1]} features.")
+
+            # Transform input with scaler
+            input_scaled = scaler3.transform(input_array)
+
+            # Make prediction
+            prediction = model3.predict(input_scaled)
+            st.write(f"Prediction (Modelo 3): {prediction[0][0]:.4f}")
+
+        except ValueError as ve:
+            st.error(f"Feature mismatch error: {ve}")
+        except Exception as e:
+            st.error(f"Error processing data with Modelo 3: {e}")
     else:
         st.warning("No hay modelos o transformadores disponibles para la predicción.")
