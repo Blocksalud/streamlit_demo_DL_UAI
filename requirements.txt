@@ -1,6 +1,5 @@
 streamlit
 matplotlib
-pickle
 tensorflow
 sklearn
 numpy
