@@ -1,6 +1,6 @@
 streamlit
 matplotlib
 tensorflow
-sklearn
+scikit-learn
 numpy
 json
